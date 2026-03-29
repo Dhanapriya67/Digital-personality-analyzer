@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Psyche — Digital Personality Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #11111a;
+    --surface2: #1a1a28;
+    --border: #2a2a3f;
+    --accent: #c8a96e;
+    --accent2: #7c6fe0;
+    --text: #e8e4d9;
+    --text-dim: #7a7690;
+    --text-mid: #b0abc8;
+    --danger: #e07c7c;
+    --success: #7ce0a8;
+    --glow: rgba(200, 169, 110, 0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(124,111,224,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 80% 80%, rgba(200,169,110,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 30% 30% at 50% 50%, rgba(124,111,224,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    padding: 48px 0 32px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .logo-mark {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 11px;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    font-weight: 300;
+    font-style: italic;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+
+  h1 em {
+    color: var(--accent);
+    font-style: normal;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px;
+    border-radius: 2px;
+    margin-bottom: 32px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 1px;
+  }
+
+  .tab:hover { color: var(--text-mid); background: var(--surface2); }
+
+  .tab.active {
+    background: var(--surface2);
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Form elements */
+  .field {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  textarea, input[type="text"], input[type="file"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 14px 16px;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+  }
+
+  textarea:focus, input[type="text"]:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(124,111,224,0.08);
+  }
+
+  textarea { min-height: 140px; line-height: 1.7; }
+
+  input[type="file"] {
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--text-dim);
+    border-style: dashed;
+  }
+
+  input[type="file"]:hover { border-color: var(--accent2); }
+
+  .hint {
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* Quiz */
+  .quiz-progress {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 28px;
+  }
+
+  .quiz-dot {
+    height: 3px;
+    flex: 1;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  .quiz-dot.done { background: var(--accent); }
+  .quiz-dot.active { background: var(--accent2); }
+
+  .quiz-question {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: 24px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: 2px;
+  }
+
+  .quiz-meta {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .quiz-options {
+    display: grid;
+    gap: 8px;
+  }
+
+  .quiz-opt {
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    border-radius: 2px;
+    transition: all 0.2s;
+    line-height: 1.5;
+  }
+
+  .quiz-opt:hover { border-color: var(--accent2); color: var(--text); background: var(--surface2); }
+  .quiz-opt.selected { border-color: var(--accent); color: var(--accent); background: var(--glow); }
+
+  /* Analyze button */
+  .btn-analyze {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent2) 0%, rgba(200,169,110,0.8) 100%);
+    border: none;
+    color: #fff;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-top: 24px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-analyze::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn-analyze:hover::before { opacity: 1; }
+  .btn-analyze:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,111,224,0.25); }
+  .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Loading */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+  }
+
+  .loading.active { display: block; }
+
+  .loading-orb {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-right-color: var(--accent2);
+    animation: spin 1.2s linear infinite;
+    margin: 0 auto 24px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--text-mid);
+  }
+
+  .loading-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  /* Results */
+  #results { display: none; }
+  #results.active { display: block; }
+
+  .result-header {
+    text-align: center;
+    padding: 48px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .enneagram-badge {
+    display: inline-block;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 5rem;
+    font-weight: 300;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .type-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 300;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .wing-label {
+    font-size: 10px;
+    color: var(--accent2);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .type-tagline {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--text-mid);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .section-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-num {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    font-weight: 400;
+  }
+
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .section-body { padding: 24px; }
+
+  /* Trait bars */
+  .trait-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 40px;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .trait-name {
+    font-size: 11px;
+    color: var(--text-mid);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .trait-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .trait-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    width: 0%;
+    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .trait-score {
+    font-size: 11px;
+    color: var(--accent);
+    text-align: right;
+  }
+
+  /* Chart container */
+  .chart-wrap {
+    position: relative;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  /* Report */
+  .report-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: var(--text-mid);
+    white-space: pre-wrap;
+  }
+
+  .report-section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin: 20px 0 8px;
+    text-transform: uppercase;
+    font-style: normal;
+  }
+
+  /* Nav for quiz */
+  .quiz-nav {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .btn-nav {
+    padding: 10px 20px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .btn-nav:hover { border-color: var(--accent2); color: var(--text); }
+  .btn-nav.primary { border-color: var(--accent2); color: var(--accent2); }
+  .btn-nav.primary:hover { background: var(--accent2); color: #fff; }
+
+  .reset-btn {
+    display: block;
+    margin: 32px auto 0;
+    padding: 10px 28px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Error */
+  .error-msg {
+    display: none;
+    background: rgba(224,124,124,0.08);
+    border: 1px solid rgba(224,124,124,0.3);
+    color: var(--danger);
+    padding: 12px 16px;
+    font-size: 12px;
+    border-radius: 2px;
+    margin-top: 12px;
+  }
+
+  .error-msg.active { display: block; }
+
+  footer {
+    text-align: center;
+    padding: 32px 0 48px;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* Enneagram type colors */
+  .type-1 { --type-color: #e07c7c; }
+  .type-2 { --type-color: #e0a07c; }
+  .type-3 { --type-color: #e0c87c; }
+  .type-4 { --type-color: #a8e07c; }
+  .type-5 { --type-color: #7ce0c8; }
+  .type-6 { --type-color: #7ca8e0; }
+  .type-7 { --type-color: #a07ce0; }
+  .type-8 { --type-color: #c87ce0; }
+  .type-9 { --type-color: #e07cb0; }
+
+  @media (max-width: 600px) {
+    .tabs { flex-wrap: wrap; }
+    .tab { min-width: calc(50% - 2px); }
+    .trait-row { grid-template-columns: 100px 1fr 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <span class="logo-mark">Psyche · Personality Intelligence</span>
+    <h1>Know Your <em>Inner Architecture</em></h1>
+    <p class="subtitle">Enneagram Analysis · Powered by Claude AI</p>
+  </header>
+
+  <!-- Input Area -->
+  <div id="input-area">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('text')">✍ Text</button>
+      <button class="tab" onclick="switchTab('social')">@ Social</button>
+      <button class="tab" onclick="switchTab('quiz')">◈ Quiz</button>
+      <button class="tab" onclick="switchTab('file')">↑ File</button>
+    </div>
+
+    <!-- Text Panel -->
+    <div id="panel-text" class="panel active">
+      <div class="field">
+        <label>Paste a writing sample, journal entry, or describe yourself</label>
+        <textarea id="text-input" placeholder="Write anything — a few paragraphs about your life, how you see the world, a recent conflict, your deepest fears or drives. The more authentic, the more precise the analysis..."></textarea>
+        <p class="hint">Minimum 100 characters. Journals, emails, essays, and personal reflections work best.</p>
+      </div>
+      <div id="error-text" class="error-msg"></div>
+      <button class="btn-analyze" onclick="analyze('text')">Analyze My Personality →</button>
+    </div>
+
+    <!-- Social Panel -->
+    <div id="panel-social" class="panel">
+      <div class="field">
+        <label>Twitter / X Username</label>
+        <input type="text" id="social-input" placeholder="@yourhandle" />
+        <p class="hint">We'll analyze your public posts and writing patterns.</p>
+      </div>
+      <div class="field">
+        <label>Additional context (optional)</label>
+        <textarea id="social-context" style="min-height:80px;" placeholder="Any extra context about yourself or how you use social media..."></textarea>
+      </div>
+      <div id="error-social" class="error-msg"></div>
+      <button class="btn-analyze" onclick="analyze('social')">Analyze My Personality →</button>
+    </div>
+
+    <!-- Quiz Panel -->
+    <div id="panel-quiz" class="panel">
+      <div class="quiz-progress" id="quiz-progress"></div>
+      <div class="quiz-meta" id="quiz-meta">Question 1 of 12</div>
+      <div class="quiz-question" id="quiz-question"></div>
+      <div class="quiz-options" id="quiz-options"></div>
+      <div class="quiz-nav">
+        <button class="btn-nav" id="btn-prev" onclick="quizPrev()" style="display:none">← Back</button>
+        <button class="btn-nav primary" id="btn-next" onclick="quizNext()">Next →</button>
+      </div>
+    </div>
+
+    <!-- File Panel -->
+    <div id="panel-file" class="panel">
+      <div class="field">
+        <label>Upload a file</label>
+        <input type="file" id="file-input" accept=".txt,.md,.json,.csv" onchange="handleFile(this)" />
+        <p class="hint">Supported: .txt, .md, .json, .csv — chat exports, notes, journals</p>
+      </div>
+      <div id="file-preview" class="field" style="display:none">
+        <label>File preview</label>
+        <textarea id="file-content" style="min-height:100px;" readonly></textarea>
+      </div>
+      <div id="error-file" class="error-msg"></div>
+      <button class="btn-analyze" id="btn-analyze-file" onclick="analyze('file')" style="display:none">Analyze My Personality →</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="loading-orb"></div>
+    <p class="loading-text">Decoding your inner landscape…</p>
+    <p class="loading-sub">Claude is reading between the lines</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="result-header">
+      <div class="enneagram-badge" id="res-type-num">—</div>
+      <div class="type-name" id="res-type-name">—</div>
+      <div class="wing-label" id="res-wing">Wing —</div>
+      <p class="type-tagline" id="res-tagline">—</p>
+    </div>
+
+    <!-- Trait scores -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <span class="section-title">Trait Breakdown</span>
+      </div>
+      <div class="section-body" id="trait-bars"></div>
+    </div>
+
+    <!-- Radar chart -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <span class="section-title">Enneagram Profile · Radar</span>
+      </div>
+      <div class="section-body">
+        <div class="chart-wrap">
+          <canvas id="radarChart" width="320" height="320"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed report -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <span class="section-title">Detailed Report</span>
+      </div>
+      <div class="section-body" id="detailed-report"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">↺ Start New Analysis</button>
+  </div>
+</div>
+
+<footer>Psyche · Digital Personality Analyzer · Powered by Claude AI</footer>
+
+<script>
+// ── State ──
+let quizAnswers = {};
+let fileText = '';
+let radarChartInstance = null;
+
+const QUIZ = [
+  { id: 1, q: "When you make a mistake, your first instinct is to…", opts: ["Fix it immediately and prevent it from happening again", "Worry about how it affects the people around you", "Find a way to turn it into a win or lesson", "Feel it deeply — mistakes sting your sense of self", "Analyze what went wrong and understand it fully", "Scan for what this says about whether you can trust yourself", "Move on quickly and look for what's next", "Take responsibility but don't show weakness", "Find peace with it and not dwell"] },
+  { id: 2, q: "Your relationship with rules is best described as…", opts: ["Rules exist for good reason — I follow and improve them", "I follow rules that protect the people I care about", "I follow rules that help me succeed; I bend what doesn't", "Rules feel like cages — I need space for authentic expression", "Rules are systems I study before deciding whether to follow", "I follow rules carefully — they create safety and predictability", "Rules are starting points — I find better ways around them", "I respect rules I choose; I resist those imposed on me", "I follow rules that keep the peace"] },
+  { id: 3, q: "Your deepest fear is closest to…", opts: ["Being corrupt, evil, or wrong", "Being unloved or unwanted", "Being worthless or a failure", "Having no identity or significance", "Being incompetent or ignorant", "Being without support or guidance", "Being trapped or in pain", "Being controlled or violated", "Conflict, loss, and separation"] },
+  { id: 4, q: "In groups, you naturally become…", opts: ["The one who keeps standards high", "The one who takes care of everyone", "The one who drives results and leads", "The one who brings depth and perspective", "The one who observes and advises", "The one who asks if we've thought of risks", "The one who energizes and reframes", "The one who takes charge decisively", "The one who mediates and unifies"] },
+  { id: 5, q: "Your relationship with emotions is…", opts: ["I control them — feelings shouldn't cloud judgment", "I feel others' emotions deeply, sometimes more than my own", "I manage them strategically — they inform, not lead", "I live inside them — they are the truth of existence", "I observe them from a slight distance — studying them", "I'm often anxious — my feelings warn me of danger", "I'd rather feel excitement than sit with discomfort", "I feel intensely but rarely show vulnerability", "I feel steady, calm — strong feelings make me uncomfortable"] },
+  { id: 6, q: "When you want something, you…", opts: ["Work systematically toward it with discipline", "Offer help first, then hope it comes back to me", "Set a goal, make a plan, and execute relentlessly", "Long for it deeply, but fear it may never truly arrive", "Research thoroughly before pursuing it", "Weigh the risks carefully before committing", "Chase it enthusiastically, jumping to the next quickly", "Go after it directly — I don't wait for permission", "Wait for the right moment and avoid forcing things"] },
+  { id: 7, q: "What matters most to you is…", opts: ["Living with integrity and doing what is right", "Being needed and making a real difference", "Achieving and being recognized for it", "Being true to who I am, fully and deeply", "Understanding — knowledge is the ultimate resource", "Security, trust, and loyalty from those around me", "Freedom, adventure, and experiencing everything life offers", "Strength, impact, and not being controlled", "Peace, harmony, and avoiding conflict"] },
+  { id: 8, q: "When criticized, you tend to…", opts: ["Consider if they're right; if so, improve immediately", "Feel hurt but try to understand what I did wrong", "Defend my record or redirect to results", "Feel it as a wound to my core identity", "Detach and evaluate the criticism objectively", "Worry it means something deeper about trustworthiness", "Brush it off or joke — I don't want to dwell", "Push back hard — I won't be diminished", "Avoid conflict; I may silently withdraw or capitulate"] },
+  { id: 9, q: "Your inner monologue is mostly…", opts: ["Should I have done that differently? How can I improve?", "What do others need? How can I help?", "What's my next goal? Am I performing well?", "What does this mean for who I am?", "How does this system work? What are the patterns?", "Is this safe? Can I trust this person?", "What's the most exciting possibility here?", "Who has power here? How do I stay in control?", "Can we all just get along? Why is this so tense?"] },
+  { id: 10, q: "Your childhood felt like…", opts: ["I had to be good to be loved", "I had to take care of others to belong", "I had to achieve to earn approval", "I felt misunderstood and deeply different", "I needed to be self-sufficient to feel safe", "The world felt uncertain and I needed guidance", "I wanted to keep things light and avoid pain", "I had to be tough to survive", "I kept the peace to keep people together"] },
+  { id: 11, q: "Your ideal weekend looks like…", opts: ["Improving something — a project, a skill, myself", "Spending quality time taking care of loved ones", "Accomplishing something meaningful and visible", "Deep creative work or emotional exploration", "Deep solo reading, learning, or research", "Comfortable plans with trusted people", "A spontaneous trip or trying five new things", "Being in control of my own time, doing things my way", "Relaxing with no agenda and no demands"] },
+  { id: 12, q: "The word that most resonates with you is…", opts: ["Integrity", "Generosity", "Achievement", "Authenticity", "Understanding", "Loyalty", "Freedom", "Strength", "Harmony"] },
+];
+
+const TYPE_NAMES = {
+  1: "The Perfectionist", 2: "The Helper", 3: "The Achiever",
+  4: "The Individualist", 5: "The Investigator", 6: "The Loyalist",
+  7: "The Enthusiast", 8: "The Challenger", 9: "The Peacemaker"
+};
+
+// ── Quiz Logic ──
+let currentQ = 0;
+
+function initQuiz() {
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = QUIZ[currentQ];
+  // Progress dots
+  const prog = document.getElementById('quiz-progress');
+  prog.innerHTML = QUIZ.map((_, i) => `<div class="quiz-dot ${i < currentQ ? 'done' : i === currentQ ? 'active' : ''}"></div>`).join('');
+  document.getElementById('quiz-meta').textContent = `Question ${currentQ + 1} of ${QUIZ.length}`;
+  document.getElementById('quiz-question').textContent = q.q;
+  const opts = document.getElementById('quiz-options');
+  opts.innerHTML = q.opts.map((o, i) => `<button class="quiz-opt ${quizAnswers[q.id] === i ? 'selected' : ''}" onclick="selectOpt(${i})">${o}</button>`).join('');
+  document.getElementById('btn-prev').style.display = currentQ === 0 ? 'none' : 'inline-block';
+  const btnNext = document.getElementById('btn-next');
+  if (currentQ === QUIZ.length - 1) {
+    btnNext.textContent = 'Analyze →';
+    btnNext.onclick = () => { if (quizAnswers[QUIZ[currentQ].id] !== undefined) analyze('quiz'); };
+  } else {
+    btnNext.textContent = 'Next →';
+    btnNext.onclick = quizNext;
+  }
+}
+
+function selectOpt(i) {
+  quizAnswers[QUIZ[currentQ].id] = i;
+  renderQuestion();
+}
+
+function quizNext() {
+  if (quizAnswers[QUIZ[currentQ].id] === undefined) return;
+  if (currentQ < QUIZ.length - 1) { currentQ++; renderQuestion(); }
+}
+
+function quizPrev() {
+  if (currentQ > 0) { currentQ--; renderQuestion(); }
+}
+
+// ── Tab switching ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+// ── File handling ──
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    fileText = e.target.result.substring(0, 8000);
+    document.getElementById('file-preview').style.display = 'block';
+    document.getElementById('file-content').value = fileText.substring(0, 500) + (fileText.length > 500 ? '\n\n[...truncated for preview...]' : '');
+    document.getElementById('btn-analyze-file').style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+// ── Main Analyze ──
+async function analyze(mode) {
+  let userContent = '';
+
+  if (mode === 'text') {
+    userContent = document.getElementById('text-input').value.trim();
+    if (userContent.length < 50) {
+      showError('error-text', 'Please write at least 50 characters for a meaningful analysis.');
+      return;
+    }
+  } else if (mode === 'social') {
+    const handle = document.getElementById('social-input').value.trim();
+    const ctx = document.getElementById('social-context').value.trim();
+    if (!handle) { showError('error-social', 'Please enter a social media username.'); return; }
+    userContent = `Social media username: ${handle}\n${ctx ? 'Additional context: ' + ctx : ''}`;
+  } else if (mode === 'quiz') {
+    const answeredCount = Object.keys(quizAnswers).length;
+    if (answeredCount < QUIZ.length) {
+      alert(`Please answer all questions. You've answered ${answeredCount} of ${QUIZ.length}.`);
+      return;
+    }
+    const lines = QUIZ.map(q => `Q: ${q.q}\nA: ${q.opts[quizAnswers[q.id]]}`);
+    userContent = `Quiz responses:\n\n${lines.join('\n\n')}`;
+  } else if (mode === 'file') {
+    if (!fileText) { showError('error-file', 'Please upload a file first.'); return; }
+    userContent = fileText;
+  }
+
+  // Show loading
+  document.getElementById('input-area').style.display = 'none';
+  document.getElementById('loading').classList.add('active');
+
+  const PROMPT = `You are a world-class Enneagram personality analyst. Analyze the following input and determine the user's Enneagram type.
+
+Input:
+${userContent}
+
+Respond ONLY with a valid JSON object. No preamble, no markdown fences. The JSON must follow this exact schema:
+
+{
+  "type": <number 1-9>,
+  "wing": "<e.g. 4w5 or 7w8>",
+  "typeName": "<e.g. The Individualist>",
+  "tagline": "<a single evocative sentence capturing this person's essence>",
+  "traits": [
+    { "name": "<trait name>", "score": <0-100> },
+    ... (exactly 8 traits relevant to this type)
+  ],
+  "scores": [<score for type 1>, <score for type 2>, ..., <score for type 9>],
+  "report": {
+    "overview": "<3-4 sentences: what defines this person's core motivation and worldview>",
+    "strengths": "<3-4 sentences about their key strengths>",
+    "challenges": "<3-4 sentences about their core struggles and blind spots>",
+    "relationships": "<2-3 sentences about how they show up in relationships>",
+    "growth": "<2-3 sentences: what growth looks like for this type>"
+  }
+}
+
+The "scores" array must have exactly 9 values (one per type, 1 through 9), representing how strongly each type is present (0-100). The dominant type should score highest.`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: PROMPT }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.map(b => b.text || '').join('').trim().replace(/```json|```/g, '').trim();
+    const result = JSON.parse(raw);
+    renderResults(result);
+  } catch (err) {
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('input-area').style.display = 'block';
+    alert('Analysis failed. Please try again. (' + err.message + ')');
+  }
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('active');
+  setTimeout(() => el.classList.remove('active'), 4000);
+}
+
+// ── Render Results ──
+function renderResults(data) {
+  document.getElementById('loading').classList.remove('active');
+
+  document.getElementById('res-type-num').textContent = `Type ${data.type}`;
+  document.getElementById('res-type-name').textContent = data.typeName || TYPE_NAMES[data.type];
+  document.getElementById('res-wing').textContent = `Wing · ${data.wing}`;
+  document.getElementById('res-tagline').textContent = data.tagline;
+
+  // Trait bars
+  const barsEl = document.getElementById('trait-bars');
+  barsEl.innerHTML = data.traits.map(t => `
+    <div class="trait-row">
+      <div class="trait-name">${t.name}</div>
+      <div class="trait-bar-bg"><div class="trait-bar-fill" data-score="${t.score}"></div></div>
+      <div class="trait-score">${t.score}</div>
+    </div>`).join('');
+
+  // Animate bars after paint
+  setTimeout(() => {
+    document.querySelectorAll('.trait-bar-fill').forEach(el => {
+      el.style.width = el.dataset.score + '%';
+    });
+  }, 100);
+
+  // Radar chart
+  if (radarChartInstance) radarChartInstance.destroy();
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  radarChartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['1·Perf', '2·Help', '3·Ach', '4·Ind', '5·Inv', '6·Loy', '7·Enth', '8·Chal', '9·Peace'],
+      datasets: [{
+        label: 'Your Profile',
+        data: data.scores,
+        backgroundColor: 'rgba(124,111,224,0.15)',
+        borderColor: 'rgba(124,111,224,0.8)',
+        pointBackgroundColor: 'rgba(200,169,110,1)',
+        pointBorderColor: 'rgba(200,169,110,0.5)',
+        pointRadius: 4,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { display: false },
+          grid: { color: 'rgba(255,255,255,0.07)' },
+          pointLabels: { color: '#7a7690', font: { size: 10, family: 'DM Mono' } },
+          angleLines: { color: 'rgba(255,255,255,0.07)' }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  // Report
+  const r = data.report;
+  const reportEl = document.getElementById('detailed-report');
+  reportEl.innerHTML = [
+    { title: 'Overview', text: r.overview },
+    { title: 'Strengths', text: r.strengths },
+    { title: 'Challenges & Blind Spots', text: r.challenges },
+    { title: 'In Relationships', text: r.relationships },
+    { title: 'Path of Growth', text: r.growth }
+  ].map(s => `<p class="report-section-title">${s.title}</p><p class="report-text">${s.text}</p>`).join('');
+
+  document.getElementById('results').classList.add('active');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetAll() {
+  document.getElementById('results').classList.remove('active');
+  document.getElementById('input-area').style.display = 'block';
+  document.getElementById('text-input').value = '';
+  document.getElementById('social-input').value = '';
+  document.getElementById('social-context').value = '';
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('btn-analyze-file').style.display = 'none';
+  fileText = '';
+  quizAnswers = {};
+  currentQ = 0;
+  renderQuestion();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Init
+initQuiz();
+</script>
+</body>
+</html>
